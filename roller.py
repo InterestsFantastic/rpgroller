@@ -1,73 +1,73 @@
-'''NEXT STEPS:
--ask reddit if it's necessary to protect the PATTERN name, etc.
+#!/usr/bin/python2
+'''Rolls dice using the format you may see in a tabletop RPG, e.g. '3d6'.
 
--Add success counts vs a difficulty, including max roll = 2 successes
--Add rerolling (reroll 1's, etc. by default reroll low but potentially also reroll high)
+Roll Description String Format:
+    1d6         Rolls a dice with 6 sides
+    d6          Same
+    12d4        Sum of twelve d4 results
+    4d6kh3      Rolls 4d6 and returns the sum of the highest three dice.
+    4d6kl3      ...lowest
+    2d6+2       Sum of 2d6 and 2
+    2d6-1       Sum of 2d6 and -1
+    3d8*10      Product of 3d8 and 10
 
--make sure that all kinds of stuff fails that should fail will fail in the testing area.
--pydoc?
+Improvements Required:
+    -ask reddit if it's necessary to protect the _PATTERN name, etc.
+
+    -Add success counts vs a difficulty, including max roll = 2 successes
+    -Add rerolling (reroll 1's, etc. by default reroll low but potentially also reroll high)
+
+    -make sure that all kinds of stuff fails that should fail will fail in the testing area.
 '''
 
-'''Roll Descriptions
-        1d6         Rolls a dice with 6 sides
-        None        Equivalent to 1d20
-        d4          Equivalent to 1d4
-        12d4        Sum of twelve d4
-        4d6kh3      Rolls 4d6 and returns the sum of the highest three dice.
-        4d6kl3      ...lowest
-        d4+20       Sum of 1d4 and 20
-        d6-1        
-        d4*100      The product of 1d4 and 100.
-'''
-
-DEBUG = False
-TESTS = False
-##DEBUG = True
-TESTS = True
+_DEBUG = False
+_TESTS = False
+##_DEBUG = True
+_TESTS = True
 
 import re, random
 random.seed()
 
-PATTERN = r'\d*d\d+[*x+-]?\d*'
-COMPILED = re.compile(PATTERN, re.IGNORECASE)
+_PATTERN = r'\d*d\d+[*x+-]?\d*'
+_COMPILED = re.compile(_PATTERN, re.IGNORECASE)
 
 
 # -------TESTING AREA-----------------------------------------
 
 
-def tests():
-    test_rollstrings()
-    test_rolls()
+def _tests():
+    _test_rollstrings()
+    _test_rolls()
 
-def test_rolls():
+def _test_rolls():
     test = Roller('3d6')
     for n in range(6):
         test.roll()
     test.newroll('3d8*10')
     test.roll()
     test.display('lines')
-
-def test_rollstrings():
-    assert COMPILED.match('d20')
-    assert COMPILED.match('D6')
-    assert COMPILED.match('d6+1')
-    assert COMPILED.match('d6-1')
-    assert COMPILED.match('2d6*10')
-    assert COMPILED.match('2d6x10')
+    
+def _test_rollstrings():
+    assert _COMPILED.match('d20')
+    assert _COMPILED.match('D6')
+    assert _COMPILED.match('d6+1')
+    assert _COMPILED.match('d6-1')
+    assert _COMPILED.match('2d6*10')
+    assert _COMPILED.match('2d6x10')
     # I don't know if this is a bug or a feature below
-    assert COMPILED.match('D20aa234234')
-    assert len(COMPILED.match('D20aa234234').group()) == len('D20') 
-    assert not COMPILED.match('20D')
-    assert not COMPILED.match('da20')
-    assert not COMPILED.match('ad20')
-##    assert not COMPILED.match('2d6x*-10') #Currently this passes, which it shouldn't.
+    assert _COMPILED.match('D20aa234234')
+    assert len(_COMPILED.match('D20aa234234').group()) == len('D20') 
+    assert not _COMPILED.match('20D')
+    assert not _COMPILED.match('da20')
+    assert not _COMPILED.match('ad20')
+##    assert not _COMPILED.match('2d6x*-10') #Currently this passes, which it shouldn't.
 
 
 # ------FUNCTIONS------------------------------------------------
 
 
-def parse(rollstr):
-    assert COMPILED.match(rollstr)
+def _parse(rollstr):
+    assert _COMPILED.match(rollstr)
     up = rollstr.upper()
     
     # Number and sides of dice
@@ -111,7 +111,14 @@ def parse(rollstr):
 
 
 def roll(rolldesc='1d20', min1=True, verbose=False):
-    numdice, dicesides, keepdice, modify = parse(rolldesc)
+    '''Returns the result of a dice roll.
+
+    min1 flags a floor of 1 on the result of a roll.
+
+    verbose flagged True returns the result, the individual dice rolls that made it (in the case of multiple dice), and the rolldesc.
+    '''
+    
+    numdice, dicesides, keepdice, modify = _parse(rolldesc)
 
     rolls = []
     for n in range(numdice):
@@ -139,15 +146,27 @@ def roll(rolldesc='1d20', min1=True, verbose=False):
 
 
 class OutTerm:
-    def __init__(self, results, verbose=False, meth='string'):
-        self.results = results
+    '''A default output object, which prints to terminal.
+        
+    CURRENTLY THIS DOESN'T HANDLE VERBOSITY.
+    '''
+    
+    def __init__(self, results=None, meth='string', verbose=False):
         self.verbose = verbose
         self.meth = meth
+        self.results = results
 
-    def display(self, meth=None):
-        # Currently this doesn't handle verbosity.
-        if meth is None:
-            meth = self.meth
+    def display(self, meth=None, verbose=None, ):
+        '''Outputs to terminal.
+
+        'string' prints results as a string.
+
+        'lines' prints one result per line.
+        '''
+        assert self.results is not None
+        if meth is None: meth = self.meth
+        if verbose is None: verbose = self.verbose
+        
         if meth == 'string':
             print self.results
         elif meth == 'lines':
@@ -156,6 +175,8 @@ class OutTerm:
 
                 
 class Roller:
+    '''Rolls dice and stores results.'''
+    
     def __init__(self, rolldesc='1d20', min1=True, verbose=False, out=OutTerm):
         # the min1 flag indicates that the lowest result of any roll (sum of all dice) is 1.
         self.min1 = min1
@@ -163,20 +184,33 @@ class Roller:
         self.rolldesc = rolldesc
         self.results = []
         self.out = out
+        self.initout()
 
     def roll(self):
+        '''Rolls dice according to current rolldesc and appends to results.'''
         self.results.append(roll(self.rolldesc, self.min1, self.verbose))
     
     def newroll(self, rolldesc):
+        '''Assigns new rolldesc.'''
         self.rolldesc = rolldesc
     
-    def display(self, meth=None):
-        self.out(self.results, self.verbose).display(meth)
+    def display(self, *args):
+        '''Pass through method to displays output by calling self.out.display().'''
+        if len(args) != 0:
+            self.out.display(*args)
+        else:
+            self.out.display()
+
+    def initout(self, *args):
+        '''Pass through method to initialize your output object. Default is good values for OutTerm'''
+        if len(args) == 0:
+            self.out = self.out(self.results)
+        else:
+            self.out = self.out(*args)
 
 
 # ------EXECUTION-------------------------------------
 
 
 if __name__ == '__main__':
-    if TESTS: tests()
-
+    if _TESTS: _tests()
