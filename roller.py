@@ -1,9 +1,7 @@
-# then 5d10+1>8 ... roll 5d10 +1 TO EACH DIE! and check how many successes vs 8. So you should check for the > before you check for the + etc.
-# then 5d10+1>8s ... this will count as a specialized roll for v:tm (i.e. 10 counts as two successes)
-# do the verbose so that I can see everything going on in the rolls... 3d6+1 should show the original and final roll, and the
-# difficulty check should show each adjusted dice and mark its success or failure.
-
 #!/usr/bin/python2
+
+# I should check v:tm mechanics to see how  regular 10 is counted in terms of successes and also what creates a botch... is a roll of 1 a success of -1? Etc. Figure it out.
+
 '''Rolls dice using the format you may see in a tabletop RPG, e.g. '3d6'.
 
 Roll Description String Format:
@@ -17,15 +15,13 @@ Roll Description String Format:
     3d8*10      Product of 3d8 and 10
     3d6rr2      Rolls 3d6 but rerolls any 2's or below
     3d6rr2o     Rerolls only once per die
+    6d10=7      Counts the number of rolls that meet or exceed 7
+    6d10+1>6    Counts the number of rolls (adding 1 to each die) that exceed 6
+    6d10=7s     Counts rolling a 10 (the maximum roll) as two successes instead of 1
 
 Improvements Required:
-    -ask reddit if it's necessary to protect the _PATTERN name, etc.
-
-    -Add success counts vs a difficulty, including max roll = 2 successes
-    -Add rerolling (reroll 1's, etc. by default reroll low but potentially also reroll high)
-
-    -make sure that all kinds of stuff fails that should fail will fail in the testing area.
-
+    -Currently only the rolldesc is accepted by sys.argv but it should actually take verbose and min1 (and kwargs if applicable)...
+    -more rigourous pattern testing; fail when it should
     -convert the docstrings to markdown for github
 '''
 
@@ -55,6 +51,8 @@ def _test_rolls():
     for n in range(6):
         test.roll()
     test.newroll('3d8*10')
+    test.roll()
+    test.newroll('6d10+3=7s')
     test.roll()
     test.display('lines')
     
@@ -106,41 +104,54 @@ def _parse(rollstr):
     pat = re.compile(r'[*X+-]\d+')
     m = pat.search(up)
     if m:
-        modtype, modval = m.group()[0], int(m.group()[1:])
-        if modtype == '+':
-            modify = lambda roll: roll + modval
-        elif modtype == '-':
-            modify = lambda roll: roll - modval
-        elif modtype == '*' or modtype == 'X':
-            modify = lambda roll: roll * modval
+        modifier, modval = m.group()[0], int(m.group()[1:])
     else:
-        modify = None
+        modifier = None
+        modval = None
 
-    # Make function for keeping high or low dice.
+    # Keep high or low dice.
     pat = re.compile(r'K[HL]\d+')
     m = pat.search(up)
     if m:
-        keepnum = int(m.group()[2:])
-        assert keepnum > 0 and keepnum <= numdice
-        if m.group()[1] == 'H':
-            keepdice = lambda group: sorted(group)[numdice-keepnum:]
-        else:
-            keepdice = lambda group: sorted(group)[:keepnum]
+        keep = m.group()[1]
+        keepdice = int(m.group()[2:])
+        assert keepdice > 0 and keepdice <= numdice
     else:
+        keep = None
         keepdice = None
 
-    return numdice, dicesides, keepdice, modify, reroll, once
+    # Find difficulty, and whether max rolls are double successes
+    pat = re.compile(r'[=>]\d+s?')
+    m = pat.search(up)
+    doubles = True if m else None
+    pat = re.compile(r'[=>]\d+')
+    m = pat.search(up)
+    if m:
+        if m.group()[0] == '=':
+            difficulty = int(m.group()[1:])
+        else:
+            difficulty = int(m.group()[1:])+1
+    else:
+        difficulty = None
+        
+    return numdice, dicesides, modifier, modval, reroll, once, keep, keepdice, difficulty, doubles
 
 
-def roll(rolldesc='1d20', min1=True, verbose=False):
+def roll(rolldesc='1d20', min1=None, verbose=False):
     '''Returns the result of a dice roll.
 
-    min1 flags a floor of 1 on the result of a roll.
+    min1 flags a floor of 1 on the result of a roll. It defaults to True if you aren't doing a difficulty check, and false if you are.
 
     verbose flagged True returns the result, the individual dice rolls that made it (in the case of multiple dice), and the rolldesc.
     '''
     
-    numdice, dicesides, keepdice, modify, reroll, once = _parse(rolldesc)
+    numdice, dicesides, modifier, modval, reroll, once, keep, keepdice, difficulty, doubles = _parse(rolldesc)
+    if min1 is None:
+        if difficulty is not None:
+            min1 = False
+        else:
+            min1 = True
+    assert not (min1 == True and difficulty is not None)
 
     # Because when infinite rerolls are allowed, we don't bother offering a chance of rolling too low,
     # this gathers MOST of the data for the rolls for presentation during verbose output
@@ -163,16 +174,50 @@ def roll(rolldesc='1d20', min1=True, verbose=False):
             rolls.append(n[1])
         except:
             rolls.append(n)
+    #to dereference from origrolls
     rolls = list(rolls)
     
-    if keepdice:
-        rolls = keepdice(rolls)
+    #keep highest or lowest keepdice dice.
+    if keepdice is not None:
+        if keep == 'H':
+            rolls = sorted(group)[numdice-keepdice:]
+        else:
+            rolls = sorted(group)[:keepdice]
 
-    if modify:
-        result = modify(sum(rolls))
+    #designed for sum of rolls or individual rolls
+    def modsomething(something):
+            if modifier == "+":
+                return something + modval
+            elif modifier == "-":
+                return something - modval
+            elif modifier == "*":
+                return something * modval
+
+    #fix for specialized roll where max roll = 2x successes    
+    def countsuccesses():
+        successes = 0
+        for r in rolls:
+            if r == dicesides and doubles:
+                successes += 1
+            if modifier is None:
+                if r >= difficulty:
+                    successes += 1
+            else:
+                if modsomething(r) >= difficulty: 
+                    successes += 1                
+        return successes
+    
+    if modifier is not None:
+        if difficulty is not None:
+            result = countsuccesses()
+        else:
+            result = modsomething(sum(rolls))
     else:
-        result = sum(rolls)
-
+        if difficulty is not None:
+            result = countsuccesses()
+        else:
+            result = sum(rolls)
+            
     if result < 1 and min1:
         result = 1
 
@@ -217,8 +262,8 @@ class OutTerm:
 class Roller:
     '''Rolls dice and stores results.'''
     
-    def __init__(self, rolldesc='1d20', min1=True, verbose=False, out=OutTerm):
-        # the min1 flag indicates that the lowest result of any roll (sum of all dice) is 1.
+    def __init__(self, rolldesc='1d20', min1=None, verbose=False, out=OutTerm):
+        '''the min1 flag indicates that the lowest result of any roll (sum of all dice) is 1.'''
         self.min1 = min1
         self.verbose = verbose
         self.rolldesc = rolldesc
@@ -253,6 +298,11 @@ class Roller:
 
 
 if __name__ == '__main__':
-    if _TESTS: _tests()
-    if _UPDATE_DOCSTRING_OUTPUT:
-        pass
+    import sys
+    if len(sys.argv) > 1:
+        print roll(sys.argv[1])
+    else:
+        if _TESTS: _tests()
+        if _UPDATE_DOCSTRING_OUTPUT:
+            pass
+
