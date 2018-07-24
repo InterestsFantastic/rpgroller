@@ -1,6 +1,8 @@
 #!/usr/bin/python2
+#Version 0.1.0
 
 '''Rolls dice using the format you may see in a tabletop RPG, e.g. '3d6'.
+_Version 0.1.0_
 
 roller.roll() does a single roll.
 roller.Roller stores the results of rolls and delivers output.
@@ -24,21 +26,24 @@ When called using argv, one roll will be performed and output will be to STDOUT 
  - 6d10>7b  Rolling a 1 now counts as -1 success
  - 6d10>7sb Works
  - 6d10>7sbc    Cancels the effects of a max roll (necessarily only important in rolls with 's')
-
-_This does not count a success by the best roll necessarily. 's' rolls only work for '>' rolls. Roll descriptions
-are not case sensitive._
+ - 6d10>7=4 Returns 1 if 4 or more successes are achieved, 0 if not.
+ - 6d10>7sb=4 Same but returns -1 if the number of successes is negative (a botch in V20)
+ 
+This does not count a success by the best roll necessarily. 's' rolls only work for '>' rolls. Roll descriptions
+are not case sensitive. Some of these features have yet to be implemented (namely the difficulty checking is bugged).
+If min1 is true (i.e. the lowest roll possible is a 1) and the roll is a difficulty check the script will crash.
 
 
 #TODO:
- - FIX DIFFICULTY CHECKS!
- - Give this a version number, ideally automated through a git client.
- - Add automated .md from docstring
- - Take more vars through argv and document this feature properly.
+ - Add automated .md from docstring, for github.
+ - argv order (roll() order) desc,verbose,min1?
+ - Rename most vars to PEP8 if not already there?
+ - Automate versioning via git client ideally
  - Make the pattern full to cover all valid rolls and assert that it matches perfectly.
- - Convert the docstrings to markdown for github
  - ',' to make multiple rolls?
- - Maybe generalize some of the success checking for other programs?
- - Generalize modifying by string.
+ - Fate/Fudge dice.
+ - Exploding dice.
+ - Output object should ideally condense output that is set to verbose, but currently that's handled by roll()
 '''
 
 _DEBUG = False
@@ -46,6 +51,7 @@ _TESTS = False
 _UPDATE_DOCSTRING_OUTPUT = False
 ##_DEBUG = True
 _TESTS = True
+#Currently just pass.
 _UPDATE_DOCSTRING_OUTPUT = True
 
 import re, random
@@ -68,7 +74,12 @@ def _test_rolls():
         test.roll()
     test.newroll('3d8*10')
     test.roll()
-    test.newroll('6d10>7sbc')
+    test.newroll('6d10>7sb=3')
+    test.roll()
+    test.newroll('d6<3')
+    for n in range(6):
+        test.roll()
+    test.newroll('4d6kh3rr3o')
     test.roll()
     test.display('lines')
     
@@ -110,12 +121,12 @@ def _parse(rollstr):
     pat = re.compile(r'RR\d+O?')
     m = pat.search(up)
     once = False
-    reroll = None
+    reroll = False
     if m:
         m = m.group()[2:]
         if m[-1] == 'O': once = True 
         reroll = int(m[:-1]) if once else int(m)
-    assert reroll is None or (reroll > 0 and reroll < dicesides)
+    assert reroll is False or (0 < reroll < dicesides)
     
     # Make function to modify results (+2, *10, etc.).
     pat = re.compile(r'[*X+-]\d+')
@@ -123,46 +134,60 @@ def _parse(rollstr):
     if m:
         mod_str, mod_val = m.group()[0], int(m.group()[1:])
     else:
-        mod_str = None
-        mod_val = None
+        mod_str = False
+        mod_val = False
 
     # Keep high or low dice.
-    keep = None
-    keepdice = None
+    keep_str = False
+    keep_dice = False
     pat = re.compile(r'K[HL]\d+')
     m = pat.search(up)
     if m:
-        keep = m.group()[1]
-        keepdice = int(m.group()[2:])
-        assert keepdice > 0 and keepdice <= numdice
+        keep_str = m.group()[1]
+        keep_dice = int(m.group()[2:])
+        assert 0 < keep_dice <= numdice
 
-    # Find difficulty, and whether max rolls are double successes
-    doubles = None
-    botches = None
-    cancel_apex = None
+    #Find difficulty, and whether max rolls are double successes.
+    doubles = False
+    botches = False
+    cancel_apex = False
     difficulty = None
-    diffdir = None
+    difficulty_direction = False
+    difficulty_target = None
     pat = re.compile(r'[><]\d+[SBC]*')
     m = pat.search(up)
     if m:
         if 'S' in m.group(): doubles = True
         if 'B' in m.group(): botches = True
         if 'C' in m.group(): cancel_apex = True
-        diffdir = m.group()[0]
+        difficulty_direction = m.group()[0]
 
         if cancel_apex:
-            assert botches is not None
-            assert doubles is not None
-            assert diffdir == '>'
-        assert not (doubles is True and diffdir == '<')
+            assert botches and doubles and difficulty_direction == '>'
+        assert not (doubles and difficulty_direction == '<')
         
-        # gathering numbers only
+        #Gathering numbers only.
         difficulty = int(''.join([x for x in m.group()[1:] if x not in 'SBC']))
+
+        #Getting target successes only if difficulty is the desired type of roll.
+        pat = re.compile(r'=\d+')
+        m = pat.search(up)
+        if m: difficulty_target = int(m.group()[1:])
         
-    return numdice, dicesides, mod_str, mod_val, reroll, once, keep, keepdice, difficulty, diffdir, doubles, botches, cancel_apex
+    return numdice, dicesides, mod_str, mod_val, reroll, once, keep_str, keep_dice, difficulty, difficulty_direction, doubles, botches, cancel_apex, difficulty_target
 
 
-# DIFFICULTY CHECKS DO NOT WORK PROPERLY!
+#designed for sum of rolls or individual rolls
+def modify_by_string_operator(mod_str, mod_input, mod_val):
+    '''Modifies input using a string operator, e.g. '+', '-', '*'.'''
+    if mod_str == "+":
+        return mod_input + mod_val
+    elif mod_str == "-":
+        return mod_input - mod_val
+    elif mod_str == "*":
+        return mod_input * mod_val
+
+
 def roll(rolldesc='1d20', min1=None, verbose=False):
     '''Returns the result of a dice roll.
 
@@ -171,7 +196,7 @@ def roll(rolldesc='1d20', min1=None, verbose=False):
     verbose flagged True returns the result, the individual dice rolls that made it (in the case of multiple dice), and the rolldesc.
     '''
     
-    numdice, dicesides, mod_str, mod_val, reroll, once, keep, keepdice, difficulty, diffdir, doubles, botches, cancel_apex = _parse(rolldesc)
+    numdice, dicesides, mod_str, mod_val, reroll, once, keep_str, keep_dice, difficulty, difficulty_direction, doubles, botches, cancel_apex, difficulty_target = _parse(rolldesc)
     if min1 is None:
         if difficulty is not None:
             min1 = False
@@ -203,42 +228,49 @@ def roll(rolldesc='1d20', min1=None, verbose=False):
     #to dereference from origrolls
     rolls = list(rolls)
     
-    #keep highest or lowest keepdice dice.
-    if keepdice is not None:
-        if keep == 'H':
-            rolls = sorted(group)[numdice-keepdice:]
+    #keep highest or lowest keep_dice dice.
+    if keep_dice:
+        if keep_str == 'H':
+            rolls = sorted(rolls)[numdice-keep_dice:]
         else:
-            rolls = sorted(group)[:keepdice]
+            rolls = sorted(rolls)[:keep_dice]
 
-    #designed for sum of rolls or individual rolls
-    def modsomething(something):
-            if mod_str == "+":
-                return something + mod_val
-            elif mod_str == "-":
-                return something - mod_val
-            elif mod_str == "*":
-                return something * mod_val
-
-    #fix for specialized roll where max roll = 2x successes    
+    #How successes are counted depends on elsewhere.
     def count_successes():
         successes = 0
+        one_tally = 0
+        max_tally = 0
         for r in rolls:
-            if r == dicesides and doubles:
+            if r == 1: one_tally += 1
+            if r == dicesides: max_tally += 1
+            if mod_str:
+                r = modify_by_string_operator(mod_str, r, mod_val)
+            if difficulty_direction == '>' and r >= difficulty:
                 successes += 1
-            if mod_str is None:
-                if r >= difficulty:
-                    successes += 1
-            else:
-                if modsomething(r) >= difficulty: 
-                    successes += 1                
-        return successes
+            if difficulty_direction == '<' and r <= difficulty:
+                successes += 1
+        
+        if doubles: successes += max_tally
+        if botches: successes -= one_tally
+        if botches and cancel_apex and doubles:
+            successes -= min(max_tally, one_tally)
+
+        if difficulty_target is None:
+            return successes
+        if successes >= difficulty_target:
+            return 1
+        elif botches and successes < 0:
+            return -1
+        else:
+            return 0
     
-    if mod_str is not None:
+    if mod_str:
         if difficulty is not None:
             result = count_successes()
         else:
-            result = modsomething(sum(rolls))
+            result = modify_by_string_operator(mod_str, sum(rolls), mod_val)
     else:
+        # Note that the individual rolls have already been modified...
         if difficulty is not None:
             result = count_successes()
         else:
@@ -256,7 +288,7 @@ def roll(rolldesc='1d20', min1=None, verbose=False):
 # ------Objects------------------------------------------------
 
 
-##CURRENTLY THIS DOESN'T HANDLE VERBOSITY
+##CURRENTLY DOESN'T REACT TO VERBOSITY FLAG
 class OutTerm:
     '''Default output object, which prints to terminal.'''
     
@@ -324,7 +356,7 @@ class Roller:
 if __name__ == '__main__':
     import sys
     if len(sys.argv) > 1:
-        print roll(sys.argv[1])
+        print roll(*sys.argv[1:])
     else:
         if _TESTS: _tests()
         if _UPDATE_DOCSTRING_OUTPUT:
