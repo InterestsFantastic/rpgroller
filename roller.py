@@ -30,8 +30,7 @@ When called using argv, one roll will be performed and output will be to STDOUT 
  - 6d10>7sb=4 Same but returns -1 if the number of successes is negative (a botch in V20)
  
 This does not count a success by the best roll necessarily. 's' rolls only work for '>' rolls. Roll descriptions
-are not case sensitive. Some of these features have yet to be implemented (namely the difficulty checking is bugged).
-If min1 is true (i.e. the lowest roll possible is a 1) and the roll is a difficulty check the script will crash.
+are not case sensitive. If min1 is true and the roll is a difficulty check the script will intentionally crash.
 
 
 #TODO:
