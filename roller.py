@@ -1,28 +1,44 @@
 #!/usr/bin/python2
 
-# I should check v:tm mechanics to see how  regular 10 is counted in terms of successes and also what creates a botch... is a roll of 1 a success of -1? Etc. Figure it out.
-
 '''Rolls dice using the format you may see in a tabletop RPG, e.g. '3d6'.
 
-Roll Description String Format:
-    1d6         Rolls a dice with 6 sides
-    d6          Same
-    12d4        Sum of twelve d4 results
-    4d6kh3      Rolls 4d6 and returns the sum of the highest three dice
-    4d6kl3      ...lowest
-    2d6+2       Sum of 2d6 and 2
-    2d6-1       Sum of 2d6 and -1
-    3d8*10      Product of 3d8 and 10
-    3d6rr2      Rolls 3d6 but rerolls any 2's or below
-    3d6rr2o     Rerolls only once per die
-    6d10=7      Counts the number of rolls that meet or exceed 7
-    6d10+1>6    Counts the number of rolls (adding 1 to each die) that exceed 6
-    6d10=7s     Counts rolling a 10 (the maximum roll) as two successes instead of 1
+roller.roll() does a single roll.
+roller.Roller stores the results of rolls and delivers output.
+When called using argv, one roll will be performed and output will be to STDOUT as a string.
 
-Improvements Required:
-    -Currently only the rolldesc is accepted by sys.argv but it should actually take verbose and min1 (and kwargs if applicable)...
-    -more rigourous pattern testing; fail when it should
-    -convert the docstrings to markdown for github
+
+#Roll Description String Format:
+ - 1d6  Rolls a dice with 6 sides
+ - d6   Same
+ - 12d4 Sum of twelve d4 results
+ - 4d6kh3   Rolls 4d6 and returns the sum of the highest three dice
+ - 4d6kl3   ...lowest
+ - 2d6+2    Sum of 2d6 and 2
+ - 2d6-1    Sum of 2d6 and -1
+ - 3d8*10   Product of 3d8 and 10
+ - 3d6rr2   Rolls 3d6 but rerolls any 2's or below
+ - 3d6rr2o  Rerolls only once per die
+ - 6d10>7   Counts the number of rolls that meet or exceed 7
+ - d6+1<3   Counts the number of rolls (adding 1 to each die) that exceed 6
+ - 6d10>7s  Counts rolling a 10 (the maximum roll) as two successes instead of 1 ("Specialization" from V20)
+ - 6d10>7b  Rolling a 1 now counts as -1 success
+ - 6d10>7sb Works
+ - 6d10>7sbc    Cancels the effects of a max roll (necessarily only important in rolls with 's')
+
+_This does not count a success by the best roll necessarily. 's' rolls only work for '>' rolls. Roll descriptions
+are not case sensitive._
+
+
+#TODO:
+ - FIX DIFFICULTY CHECKS!
+ - Give this a version number, ideally automated through a git client.
+ - Add automated .md from docstring
+ - Take more vars through argv and document this feature properly.
+ - Make the pattern full to cover all valid rolls and assert that it matches perfectly.
+ - Convert the docstrings to markdown for github
+ - ',' to make multiple rolls?
+ - Maybe generalize some of the success checking for other programs?
+ - Generalize modifying by string.
 '''
 
 _DEBUG = False
@@ -30,7 +46,7 @@ _TESTS = False
 _UPDATE_DOCSTRING_OUTPUT = False
 ##_DEBUG = True
 _TESTS = True
-##_UPDATE_DOCSTRING_OUTPUT = True
+_UPDATE_DOCSTRING_OUTPUT = True
 
 import re, random
 random.seed()
@@ -39,7 +55,7 @@ _PATTERN = r'\d*d\d+[*x+-]?\d*'
 _COMPILED = re.compile(_PATTERN, re.IGNORECASE)
 
 
-# -------TESTING AREA-----------------------------------------
+# -------Tests-----------------------------------------
 
 
 def _tests():
@@ -52,7 +68,7 @@ def _test_rolls():
         test.roll()
     test.newroll('3d8*10')
     test.roll()
-    test.newroll('6d10+3=7s')
+    test.newroll('6d10>7sbc')
     test.roll()
     test.display('lines')
     
@@ -72,10 +88,11 @@ def _test_rollstrings():
 ##    assert not _COMPILED.match('2d6x*-10') #Currently this passes, which it shouldn't.
 
 
-# ------FUNCTIONS------------------------------------------------
+# ------Functions------------------------------------------------
 
 
 def _parse(rollstr):
+    '''Parses a roll description.'''
     assert _COMPILED.match(rollstr)
     up = rollstr.upper()
 
@@ -104,39 +121,48 @@ def _parse(rollstr):
     pat = re.compile(r'[*X+-]\d+')
     m = pat.search(up)
     if m:
-        modifier, modval = m.group()[0], int(m.group()[1:])
+        mod_str, mod_val = m.group()[0], int(m.group()[1:])
     else:
-        modifier = None
-        modval = None
+        mod_str = None
+        mod_val = None
 
     # Keep high or low dice.
+    keep = None
+    keepdice = None
     pat = re.compile(r'K[HL]\d+')
     m = pat.search(up)
     if m:
         keep = m.group()[1]
         keepdice = int(m.group()[2:])
         assert keepdice > 0 and keepdice <= numdice
-    else:
-        keep = None
-        keepdice = None
 
     # Find difficulty, and whether max rolls are double successes
-    pat = re.compile(r'[=>]\d+s?')
-    m = pat.search(up)
-    doubles = True if m else None
-    pat = re.compile(r'[=>]\d+')
+    doubles = None
+    botches = None
+    cancel_apex = None
+    difficulty = None
+    diffdir = None
+    pat = re.compile(r'[><]\d+[SBC]*')
     m = pat.search(up)
     if m:
-        if m.group()[0] == '=':
-            difficulty = int(m.group()[1:])
-        else:
-            difficulty = int(m.group()[1:])+1
-    else:
-        difficulty = None
+        if 'S' in m.group(): doubles = True
+        if 'B' in m.group(): botches = True
+        if 'C' in m.group(): cancel_apex = True
+        diffdir = m.group()[0]
+
+        if cancel_apex:
+            assert botches is not None
+            assert doubles is not None
+            assert diffdir == '>'
+        assert not (doubles is True and diffdir == '<')
         
-    return numdice, dicesides, modifier, modval, reroll, once, keep, keepdice, difficulty, doubles
+        # gathering numbers only
+        difficulty = int(''.join([x for x in m.group()[1:] if x not in 'SBC']))
+        
+    return numdice, dicesides, mod_str, mod_val, reroll, once, keep, keepdice, difficulty, diffdir, doubles, botches, cancel_apex
 
 
+# DIFFICULTY CHECKS DO NOT WORK PROPERLY!
 def roll(rolldesc='1d20', min1=None, verbose=False):
     '''Returns the result of a dice roll.
 
@@ -145,7 +171,7 @@ def roll(rolldesc='1d20', min1=None, verbose=False):
     verbose flagged True returns the result, the individual dice rolls that made it (in the case of multiple dice), and the rolldesc.
     '''
     
-    numdice, dicesides, modifier, modval, reroll, once, keep, keepdice, difficulty, doubles = _parse(rolldesc)
+    numdice, dicesides, mod_str, mod_val, reroll, once, keep, keepdice, difficulty, diffdir, doubles, botches, cancel_apex = _parse(rolldesc)
     if min1 is None:
         if difficulty is not None:
             min1 = False
@@ -186,20 +212,20 @@ def roll(rolldesc='1d20', min1=None, verbose=False):
 
     #designed for sum of rolls or individual rolls
     def modsomething(something):
-            if modifier == "+":
-                return something + modval
-            elif modifier == "-":
-                return something - modval
-            elif modifier == "*":
-                return something * modval
+            if mod_str == "+":
+                return something + mod_val
+            elif mod_str == "-":
+                return something - mod_val
+            elif mod_str == "*":
+                return something * mod_val
 
     #fix for specialized roll where max roll = 2x successes    
-    def countsuccesses():
+    def count_successes():
         successes = 0
         for r in rolls:
             if r == dicesides and doubles:
                 successes += 1
-            if modifier is None:
+            if mod_str is None:
                 if r >= difficulty:
                     successes += 1
             else:
@@ -207,14 +233,14 @@ def roll(rolldesc='1d20', min1=None, verbose=False):
                     successes += 1                
         return successes
     
-    if modifier is not None:
+    if mod_str is not None:
         if difficulty is not None:
-            result = countsuccesses()
+            result = count_successes()
         else:
             result = modsomething(sum(rolls))
     else:
         if difficulty is not None:
-            result = countsuccesses()
+            result = count_successes()
         else:
             result = sum(rolls)
             
@@ -227,14 +253,12 @@ def roll(rolldesc='1d20', min1=None, verbose=False):
         return result
     
 
-# ------OBJECTS------------------------------------------------
+# ------Objects------------------------------------------------
 
 
+##CURRENTLY THIS DOESN'T HANDLE VERBOSITY
 class OutTerm:
-    '''A default output object, which prints to terminal.
-        
-    CURRENTLY THIS DOESN'T HANDLE VERBOSITY.
-    '''
+    '''Default output object, which prints to terminal.'''
     
     def __init__(self, results=None, meth='string', verbose=False):
         self.verbose = verbose
@@ -260,7 +284,7 @@ class OutTerm:
 
                 
 class Roller:
-    '''Rolls dice and stores results.'''
+    '''Rolls dice, stores results, produces output.'''
     
     def __init__(self, rolldesc='1d20', min1=None, verbose=False, out=OutTerm):
         '''the min1 flag indicates that the lowest result of any roll (sum of all dice) is 1.'''
@@ -276,7 +300,7 @@ class Roller:
         self.results.append(roll(self.rolldesc, self.min1, self.verbose))
     
     def newroll(self, rolldesc):
-        '''Assigns new rolldesc.'''
+        '''Assigns new rolldesc. Does not roll.'''
         self.rolldesc = rolldesc
     
     def display(self, *args):
@@ -294,7 +318,7 @@ class Roller:
             self.out = self.out(*args)
 
 
-# ------EXECUTION-------------------------------------
+# ------Execution-------------------------------------
 
 
 if __name__ == '__main__':
@@ -305,4 +329,3 @@ if __name__ == '__main__':
         if _TESTS: _tests()
         if _UPDATE_DOCSTRING_OUTPUT:
             pass
-
