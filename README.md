@@ -44,20 +44,20 @@ are not case sensitive. If min1 is true and the roll is a difficulty check the s
 ## modify_by_string_operator(mod_str, mod_input, mod_val):
 Modifies input using a string operator, e.g. '+', '-', '*'.
 
-## def roll(rolldesc='1d20', min1=None, verbose=False):
+## roll(rolldesc='1d20', min1=None, verbose=False):
 Returns the result of a dice roll.
 
 min1 flags a floor of 1 on the result of a roll. It defaults to True if you aren't doing a difficulty check, and false if you are.
 
 verbose flagged True returns the result, the individual dice rolls that made it (in the case of multiple dice), and the rolldesc.
 
-# class Roller:
+# Roller class:
 Rolls dice, stores results, produces output.
     
 ## __init__(self, rolldesc='1d20', min1=None, verbose=False, out=OutTerm):
 the min1 flag indicates that the lowest result of any roll (sum of all dice) is 1.
 
-## def roll(self):
+## roll(self):
 Rolls dice according to current rolldesc and appends to results.
 
 ## newroll(self, rolldesc):
@@ -66,5 +66,5 @@ Assigns new rolldesc. Does not roll.
 ## display(self, *args):
 Pass through method to displays output by calling self.out.display().
 
-## def initout(self, *args):
+## initout(self, *args):
 Pass through method to initialize your output object. Default is good values for OutTerm
