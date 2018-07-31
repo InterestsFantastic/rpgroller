@@ -1,6 +1,6 @@
-#Functions:#
+# Functions:
 
-##modify_by_string_operator(mod_str, mod_input, mod_val)
+## modify_by_string_operator(mod_str, mod_input, mod_val)
 Modifies input using a string operator, e.g. '+', '-', '*'.
 
 ##roll(rolldesc='d20', min1=None, verbose=False)
