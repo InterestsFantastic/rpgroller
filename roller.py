@@ -1,15 +1,13 @@
 #!/usr/bin/python2
-#Version 0.1.0
 
 '''Rolls dice using the format you may see in a tabletop RPG, e.g. '3d6'.
-_Version 0.1.0_
 
 roller.roll() does a single roll.
 roller.Roller stores the results of rolls and delivers output.
 When called using argv, one roll will be performed and output will be to STDOUT as a string.
 
 
-#Roll Description String Format:
+### Roll Description String Format:
  - 1d6  Rolls a dice with 6 sides
  - d6   Same
  - 12d4 Sum of twelve d4 results
@@ -33,7 +31,7 @@ This does not count a success by the best roll necessarily. 's' rolls only work 
 are not case sensitive. If min1 is true and the roll is a difficulty check the script will intentionally crash.
 
 
-#TODO:
+## TODO:
  - Add automated .md from docstring, for github.
  - argv order (roll() order) desc,verbose,min1?
  - Rename most vars to PEP8 if not already there?
@@ -187,7 +185,7 @@ def modify_by_string_operator(mod_str, mod_input, mod_val):
         return mod_input * mod_val
 
 
-def roll(rolldesc='1d20', min1=None, verbose=False):
+def roll(rolldesc='d20', min1=None, verbose=False):
     '''Returns the result of a dice roll.
 
     min1 flags a floor of 1 on the result of a roll. It defaults to True if you aren't doing a difficulty check, and false if you are.
@@ -287,8 +285,7 @@ def roll(rolldesc='1d20', min1=None, verbose=False):
 # ------Objects------------------------------------------------
 
 
-##CURRENTLY DOESN'T REACT TO VERBOSITY FLAG
-class OutTerm:
+class _OutTerm:
     '''Default output object, which prints to terminal.'''
     
     def __init__(self, results=None, meth='string', verbose=False):
@@ -317,8 +314,7 @@ class OutTerm:
 class Roller:
     '''Rolls dice, stores results, produces output.'''
     
-    def __init__(self, rolldesc='1d20', min1=None, verbose=False, out=OutTerm):
-        '''the min1 flag indicates that the lowest result of any roll (sum of all dice) is 1.'''
+    def __init__(self, rolldesc='d20', min1=None, verbose=False, out=_OutTerm):
         self.min1 = min1
         self.verbose = verbose
         self.rolldesc = rolldesc
@@ -359,4 +355,7 @@ if __name__ == '__main__':
     else:
         if _TESTS: _tests()
         if _UPDATE_DOCSTRING_OUTPUT:
-            pass
+            import autodocumenter
+            autodocumenter.do('roller')            
+                        
+
