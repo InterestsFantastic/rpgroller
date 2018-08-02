@@ -45,11 +45,8 @@ are not case sensitive. If min1 is true and the roll is a difficulty check the s
 
 _DEBUG = False
 _TESTS = False
-_UPDATE_DOCSTRING_OUTPUT = False
 ##_DEBUG = True
 _TESTS = True
-#Currently just pass.
-_UPDATE_DOCSTRING_OUTPUT = True
 
 import re, random
 random.seed()
@@ -354,8 +351,4 @@ if __name__ == '__main__':
         print roll(*sys.argv[1:])
     else:
         if _TESTS: _tests()
-        if _UPDATE_DOCSTRING_OUTPUT:
-            import autodocumenter
-            autodocumenter.do('roller')            
-                        
 
