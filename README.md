@@ -34,7 +34,6 @@ are not case sensitive. If min1 is true and the roll is a difficulty check the s
 
 
 ## TODO:
- - update autodocumenter to get rid of the self in class methods
  - argv order (roll() order) desc,verbose,min1?
  - Rename most vars to PEP8 if not already there?
  - Automate versioning via git client ideally
