@@ -32,7 +32,7 @@ are not case sensitive. If min1 is true and the roll is a difficulty check the s
 
 
 ## TODO:
- - Add automated .md from docstring, for github.
+ - update autodocumenter to get rid of the self in class methods
  - argv order (roll() order) desc,verbose,min1?
  - Rename most vars to PEP8 if not already there?
  - Automate versioning via git client ideally
@@ -41,12 +41,14 @@ are not case sensitive. If min1 is true and the roll is a difficulty check the s
  - Fate/Fudge dice.
  - Exploding dice.
  - Output object should ideally condense output that is set to verbose, but currently that's handled by roll()
+ - Write a discord output object.
 '''
 
 _DEBUG = False
 _TESTS = False
 ##_DEBUG = True
 _TESTS = True
+_DOCUMENT = False
 
 import re, random
 random.seed()
@@ -75,7 +77,7 @@ def _test_rolls():
         test.roll()
     test.newroll('4d6kh3rr3o')
     test.roll()
-    test.display('lines')
+    test.render('lines')
     
 def _test_rollstrings():
     assert _COMPILED.match('d20')
@@ -290,7 +292,7 @@ class _OutTerm:
         self.meth = meth
         self.results = results
 
-    def display(self, meth=None, verbose=None, ):
+    def render(self, meth=None, verbose=None, ):
         '''Outputs to terminal.
 
         'string' prints results as a string.
@@ -327,12 +329,12 @@ class Roller:
         '''Assigns new rolldesc. Does not roll.'''
         self.rolldesc = rolldesc
     
-    def display(self, *args):
-        '''Pass through method to displays output by calling self.out.display().'''
+    def render(self, *args):
+        '''Pass through method to displays output by calling self.out.render().'''
         if len(args) != 0:
-            self.out.display(*args)
+            self.out.render(*args)
         else:
-            self.out.display()
+            self.out.render()
 
     def initout(self, *args):
         '''Pass through method to initialize your output object. Default is good values for OutTerm'''
@@ -351,4 +353,7 @@ if __name__ == '__main__':
         print roll(*sys.argv[1:])
     else:
         if _TESTS: _tests()
+    if _DOCUMENT:
+        import autodocumenter
+        autodocumenter.do('roller')
 
