@@ -1,3 +1,7 @@
+RPG-Roller
+==========
+
+
 Rolls dice using the format you may see in a tabletop RPG, e.g. '3d6'.
 
 roller.roll() does a single roll.
