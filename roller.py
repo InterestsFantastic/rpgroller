@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 
 '''Rolls dice using the format you may see in a tabletop RPG, e.g. '3d6'.
 
@@ -31,7 +31,7 @@ This does not count a success by the best roll necessarily. 's' rolls only work 
 are not case sensitive. If min1 is true and the roll is a difficulty check the script will intentionally crash.
 
 
-## TODO:
+### TODO:
  - update autodocumenter to get rid of the self in class methods
  - argv order (roll() order) desc,verbose,min1?
  - Rename most vars to PEP8 if not already there?
@@ -46,9 +46,10 @@ are not case sensitive. If min1 is true and the roll is a difficulty check the s
 
 _DEBUG = False
 _TESTS = False
+_DOCUMENT = False
 ##_DEBUG = True
 _TESTS = True
-_DOCUMENT = False
+##_DOCUMENT = True
 
 import re, random
 random.seed()
@@ -304,16 +305,17 @@ class _OutTerm:
         if verbose is None: verbose = self.verbose
         
         if meth == 'string':
-            print self.results
+            print(self.results)
         elif meth == 'lines':
             for n in self.results:
-                print n
+                print(n)
 
                 
 class Roller:
     '''Rolls dice, stores results, produces output.'''
     
     def __init__(self, rolldesc='d20', min1=None, verbose=False, out=_OutTerm):
+        '''As per module roll method.'''
         self.min1 = min1
         self.verbose = verbose
         self.rolldesc = rolldesc
@@ -350,10 +352,10 @@ class Roller:
 if __name__ == '__main__':
     import sys
     if len(sys.argv) > 1:
-        print roll(*sys.argv[1:])
+        print(roll(*sys.argv[1:]))
     else:
         if _TESTS: _tests()
     if _DOCUMENT:
         import autodocumenter
-        autodocumenter.do('roller')
+        autodocumenter.do('roller', 'RPG-Roller')
 
