@@ -33,7 +33,8 @@ This does not count a success by the best roll necessarily. 's' rolls only work 
 are not case sensitive. If min1 is true and the roll is a difficulty check the script will intentionally crash.
 
 
-## TODO:
+### TODO:
+ - update autodocumenter to get rid of the self in class methods
  - argv order (roll() order) desc,verbose,min1?
  - Rename most vars to PEP8 if not already there?
  - Automate versioning via git client ideally
@@ -45,32 +46,32 @@ are not case sensitive. If min1 is true and the roll is a difficulty check the s
  - Write a discord output object.
 
 
-# Module Functions:
+## Module Functions:
 
-## modify_by_string_operator(mod_str, mod_input, mod_val)
+#### modify_by_string_operator(mod_str, mod_input, mod_val)
 Modifies input using a string operator, e.g. '+', '-', '*'.
 
-## roll(rolldesc='d20', min1=None, verbose=False)
+#### roll(rolldesc='d20', min1=None, verbose=False)
 Returns the result of a dice roll.
 min1 flags a floor of 1 on the result of a roll. It defaults to True if you aren't doing a difficulty check, and false if you are.
 verbose flagged True returns the result, the individual dice rolls that made it (in the case of multiple dice), and the rolldesc.
 
 
-# Classes:
+## Classes:
 
-## roller.Roller
+### roller.Roller
 Rolls dice, stores results, produces output.
 
-### Roller.__init__(self, rolldesc='d20', min1=None, verbose=False, out=_OutTerm)
+#### Roller.__init__(rolldesc='d20', min1=None, verbose=False, out=_OutTerm)
 
-### Roller.roll(self)
+#### Roller.roll()
 Rolls dice according to current rolldesc and appends to results.
 
-### Roller.newroll(self, rolldesc)
+#### Roller.newroll(rolldesc)
 Assigns new rolldesc. Does not roll.
 
-### Roller.render(self, *args)
+#### Roller.render(*args)
 Pass through method to displays output by calling self.out.render().
 
-### Roller.initout(self, *args)
+#### Roller.initout(*args)
 Pass through method to initialize your output object. Default is good values for OutTerm
