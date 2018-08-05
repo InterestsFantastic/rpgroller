@@ -62,16 +62,17 @@ verbose flagged True returns the result, the individual dice rolls that made it 
 ### roller.Roller
 Rolls dice, stores results, produces output.
 
-#### Roller.__init__(rolldesc='d20', min1=None, verbose=False, out=_OutTerm)
+#### `Roller.__init__(rolldesc='d20', min1=None, verbose=False, out=_OutTerm)`
+As per module roll method.
 
-#### Roller.roll()
+#### `Roller.roll()`
 Rolls dice according to current rolldesc and appends to results.
 
-#### Roller.newroll(rolldesc)
+#### `Roller.newroll(rolldesc)`
 Assigns new rolldesc. Does not roll.
 
-#### Roller.render(*args)
+#### `Roller.render(*args)`
 Pass through method to displays output by calling self.out.render().
 
-#### Roller.initout(*args)
+#### `Roller.initout(*args)`
 Pass through method to initialize your output object. Default is good values for OutTerm
