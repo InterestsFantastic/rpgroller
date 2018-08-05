@@ -1,7 +1,3 @@
-RPG-Roller
-==========
-
-
 Rolls dice using the format you may see in a tabletop RPG, e.g. '3d6'.
 
 roller.roll() does a single roll.
@@ -34,7 +30,7 @@ are not case sensitive. If min1 is true and the roll is a difficulty check the s
 
 
 ## TODO:
- - Add automated .md from docstring, for github.
+ - update autodocumenter to get rid of the self in class methods
  - argv order (roll() order) desc,verbose,min1?
  - Rename most vars to PEP8 if not already there?
  - Automate versioning via git client ideally
@@ -43,6 +39,7 @@ are not case sensitive. If min1 is true and the roll is a difficulty check the s
  - Fate/Fudge dice.
  - Exploding dice.
  - Output object should ideally condense output that is set to verbose, but currently that's handled by roll()
+ - Write a discord output object.
 
 
 # Module Functions:
@@ -69,8 +66,8 @@ Rolls dice according to current rolldesc and appends to results.
 ### Roller.newroll(self, rolldesc)
 Assigns new rolldesc. Does not roll.
 
-### Roller.display(self, *args)
-Pass through method to displays output by calling self.out.display().
+### Roller.render(self, *args)
+Pass through method to displays output by calling self.out.render().
 
 ### Roller.initout(self, *args)
 Pass through method to initialize your output object. Default is good values for OutTerm
