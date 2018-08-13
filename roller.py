@@ -3,7 +3,7 @@
 '''Rolls dice using the format you may see in a tabletop RPG, e.g. '3d6'.
 
 roller.roll() does a single roll.
-roller.Roller stores the results of rolls and delivers output.
+roller.Roller stores the results of rolls and meters out output.
 When called using argv, one roll will be performed and output will be to STDOUT as a string.
 
 
@@ -32,16 +32,13 @@ are not case sensitive. If min1 is true and the roll is a difficulty check the s
 
 
 ### TODO:
- - update autodocumenter to get rid of the self in class methods
- - argv order (roll() order) desc,verbose,min1?
+ - give more depth to argv
  - Rename most vars to PEP8 if not already there?
- - Automate versioning via git client ideally
- - Make the pattern full to cover all valid rolls and assert that it matches perfectly.
- - ',' to make multiple rolls?
+ - fix _PATTERN: Make the pattern full to cover all valid rolls and assert that it matches perfectly.
+ - ',' to make multiple rolls? Maybe use a list vs a string?
  - Fate/Fudge dice.
  - Exploding dice.
- - Output object should ideally condense output that is set to verbose, but currently that's handled by roll()
- - Write a discord output object.
+
 '''
 
 _DEBUG = False
@@ -66,19 +63,24 @@ def _tests():
     _test_rolls()
 
 def _test_rolls():
-    test = Roller('3d6rr2o', verbose=True)
+    test = Roller('3d6rr2o')
     for n in range(6):
         test.roll()
-    test.newroll('3d8*10')
+    out = _OutTerm(test.send())
+    out.render()
+    
+    test.newrolldesc('3d8*10')
     test.roll()
-    test.newroll('6d10>7sb=3')
+    test.newrolldesc('6d10>7sb=3')
     test.roll()
-    test.newroll('d6<3')
+    test.newrolldesc('d6<3')
     for n in range(6):
         test.roll()
-    test.newroll('4d6kh3rr3o')
+    test.newrolldesc('4d6kh3rr3o')
     test.roll()
-    test.render('lines')
+    out.results = test.send()
+    out.render()
+
     
 def _test_rollstrings():
     assert _COMPILED.match('d20')
@@ -185,27 +187,29 @@ def modify_by_string_operator(mod_str, mod_input, mod_val):
         return mod_input * mod_val
 
 
-def roll(rolldesc='d20', min1=None, verbose=False):
+def roll(rolldesc='d20', min1=None, complete_output=False):
     '''Returns the result of a dice roll.
 
     min1 flags a floor of 1 on the result of a roll. It defaults to True if you aren't doing a difficulty check, and false if you are.
 
-    verbose flagged True returns the result, the individual dice rolls that made it (in the case of multiple dice), and the rolldesc.
+    If complete_output is False it returns a string otherwise it returns a results object.
     '''
-    
+
     numdice, dicesides, mod_str, mod_val, reroll, once, keep_str, keep_dice, difficulty, difficulty_direction, doubles, botches, cancel_apex, difficulty_target = _parse(rolldesc)
+    # Setting defaults
     if min1 is None:
         if difficulty is not None:
             min1 = False
         else:
             min1 = True
+    # Making sure min1 and difficulty are in accord.
     assert not (min1 == True and difficulty is not None)
 
-    # Because when infinite rerolls are allowed, we don't bother offering a chance of rolling too low,
-    # this gathers MOST of the data for the rolls for presentation during verbose output
+    # Raw rolls generated here.
     origrolls = []
     for n in range(numdice):
         if reroll:
+            # When infinite rerolls are allowed, skip the low rolls.
             if not once:
                 origrolls.append(random.randint(reroll+1, dicesides))
             else:
@@ -215,23 +219,37 @@ def roll(rolldesc='d20', min1=None, verbose=False):
         else:
             origrolls.append(random.randint(1, dicesides))
 
-    #define rolls here and condense it
-    rolls = []
-    for n in origrolls:
-        try:
-            rolls.append(n[1])
-        except:
-            rolls.append(n)
-    #to dereference from origrolls
-    rolls = list(rolls)
-    
-    #keep highest or lowest keep_dice dice.
+    # Define rolls here and condense.
+    if not reroll:
+        rolls = list(origrolls)
+    else:
+        rolls = []
+        for n in origrolls:
+            try:
+                rolls.append(n[1])
+            except:
+                rolls.append(n)
+        # Dereference from origrolls
+        rolls = list(rolls)
+
+    if complete_output:
+        class RollResult:
+            pass
+        r = RollResult()
+        r.rolldesc = rolldesc
+        r.origrolls = list(origrolls)
+        r.rolls = list(rolls)
+        r.rollparams = {'numdice':numdice, 'dicesides':dicesides, 'mod_str':mod_str, 'mod_val':mod_val, 'reroll':reroll, 'once':once, 'keep_str':keep_str, 'keep_dice':keep_dice, 'difficulty':difficulty, 'difficulty_direction':difficulty_direction, 'doubles':doubles, 'botches':botches, 'cancel_apex':cancel_apex, 'difficulty_target':difficulty_target}
+
+    # Keep highest or lowest keep_dice dice.
     if keep_dice:
         if keep_str == 'H':
             rolls = sorted(rolls)[numdice-keep_dice:]
         else:
             rolls = sorted(rolls)[:keep_dice]
-
+        if complete_output:
+            r.kept_rolls = list(rolls)
+    
     #How successes are counted depends on elsewhere.
     def count_successes():
         successes = 0
@@ -276,8 +294,9 @@ def roll(rolldesc='d20', min1=None, verbose=False):
     if result < 1 and min1:
         result = 1
 
-    if verbose:
-        return result, origrolls, rolldesc
+    if complete_output:
+        r.result = result
+        return r
     else:
         return result
     
@@ -286,64 +305,45 @@ def roll(rolldesc='d20', min1=None, verbose=False):
 
 
 class _OutTerm:
-    '''Default output object, which prints to terminal.'''
+    '''Default output object, which prints a simple string (final result) to terminal.'''
     
-    def __init__(self, results=None, meth='string', verbose=False):
-        self.verbose = verbose
-        self.meth = meth
+    def __init__(self, results=None):
         self.results = results
 
-    def render(self, meth=None, verbose=None, ):
-        '''Outputs to terminal.
-
-        'string' prints results as a string.
-
-        'lines' prints one result per line.
-        '''
+    def render(self):
         assert self.results is not None
-        if meth is None: meth = self.meth
-        if verbose is None: verbose = self.verbose
+        print(self.results)
         
-        if meth == 'string':
-            print(self.results)
-        elif meth == 'lines':
-            for n in self.results:
-                print(n)
-
                 
 class Roller:
-    '''Rolls dice, stores results, produces output.'''
+    '''Rolls dice according to current rolldesc, stores results, returns results incrementally if desired.'''
     
-    def __init__(self, rolldesc='d20', min1=None, verbose=False, out=_OutTerm):
+    def __init__(self, rolldesc='d20', min1=None, complete_output=False):
         '''As per module roll method.'''
         self.min1 = min1
-        self.verbose = verbose
+        self.complete_output = complete_output
         self.rolldesc = rolldesc
         self.results = []
-        self.out = out
-        self.initout()
+        self.sent = 0
+        
 
     def roll(self):
         '''Rolls dice according to current rolldesc and appends to results.'''
-        self.results.append(roll(self.rolldesc, self.min1, self.verbose))
+        self.results.append(roll(self.rolldesc, self.min1, self.complete_output))
     
-    def newroll(self, rolldesc):
+    def newrolldesc(self, rolldesc):
         '''Assigns new rolldesc. Does not roll.'''
         self.rolldesc = rolldesc
-    
-    def render(self, *args):
-        '''Pass through method to displays output by calling self.out.render().'''
-        if len(args) != 0:
-            self.out.render(*args)
-        else:
-            self.out.render()
 
-    def initout(self, *args):
-        '''Pass through method to initialize your output object. Default is good values for OutTerm'''
-        if len(args) == 0:
-            self.out = self.out(self.results, verbose=self.verbose)
-        else:
-            self.out = self.out(*args)
+    def send(self):
+        '''Returns results that have not previously been returned.
+
+        If you would like to get all results, use Roller().results.'''
+        assert self.results is not None
+        return_results = self.results[self.sent:]
+        assert return_results != []
+        self.sent = len(self.results)
+        return return_results
 
 
 # ------Execution-------------------------------------
