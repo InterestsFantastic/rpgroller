@@ -5,7 +5,7 @@ RPG-Roller
 Rolls dice using the format you may see in a tabletop RPG, e.g. '3d6'.
 
 roller.roll() does a single roll.
-roller.Roller stores the results of rolls and delivers output.
+roller.Roller stores the results of rolls and meters out output.
 When called using argv, one roll will be performed and output will be to STDOUT as a string.
 
 
@@ -34,16 +34,13 @@ are not case sensitive. If min1 is true and the roll is a difficulty check the s
 
 
 ### TODO:
- - update autodocumenter to get rid of the self in class methods
- - argv order (roll() order) desc,verbose,min1?
+ - give more depth to argv
  - Rename most vars to PEP8 if not already there?
- - Automate versioning via git client ideally
- - Make the pattern full to cover all valid rolls and assert that it matches perfectly.
- - ',' to make multiple rolls?
+ - fix _PATTERN: Make the pattern full to cover all valid rolls and assert that it matches perfectly.
+ - ',' to make multiple rolls? Maybe use a list vs a string?
  - Fate/Fudge dice.
  - Exploding dice.
- - Output object should ideally condense output that is set to verbose, but currently that's handled by roll()
- - Write a discord output object.
+
 
 
 ## Module Functions:
@@ -51,28 +48,26 @@ are not case sensitive. If min1 is true and the roll is a difficulty check the s
 #### modify_by_string_operator(mod_str, mod_input, mod_val)
 Modifies input using a string operator, e.g. '+', '-', '*'.
 
-#### roll(rolldesc='d20', min1=None, verbose=False)
+#### roll(rolldesc='d20', min1=None, complete_output=False)
 Returns the result of a dice roll.
 min1 flags a floor of 1 on the result of a roll. It defaults to True if you aren't doing a difficulty check, and false if you are.
-verbose flagged True returns the result, the individual dice rolls that made it (in the case of multiple dice), and the rolldesc.
+If complete_output is False it returns a string otherwise it returns a results object.
 
 
 ## Classes:
 
 ### roller.Roller
-Rolls dice, stores results, produces output.
+Rolls dice according to current rolldesc, stores results, returns results incrementally if desired.
 
-#### `Roller.__init__(rolldesc='d20', min1=None, verbose=False, out=_OutTerm)`
+#### `Roller.__init__(rolldesc='d20', min1=None, complete_output=False)`
 As per module roll method.
 
 #### `Roller.roll()`
 Rolls dice according to current rolldesc and appends to results.
 
-#### `Roller.newroll(rolldesc)`
+#### `Roller.newrolldesc(rolldesc)`
 Assigns new rolldesc. Does not roll.
 
-#### `Roller.render(*args)`
-Pass through method to displays output by calling self.out.render().
-
-#### `Roller.initout(*args)`
-Pass through method to initialize your output object. Default is good values for OutTerm
+#### `Roller.send()`
+Returns results that have not previously been returned.
+If you would like to get all results, use Roller().results.
