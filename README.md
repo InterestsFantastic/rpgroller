@@ -1,11 +1,6 @@
-RPG-Roller
-==========
-
-
 Rolls dice using the format you may see in a tabletop RPG, e.g. '3d6'.
 
-roller.roll() does a single roll.
-roller.Roller stores the results of rolls and meters out output.
+roll() does a single roll.
 When called using argv, one roll will be performed and output will be to STDOUT as a string.
 
 
@@ -32,42 +27,3 @@ When called using argv, one roll will be performed and output will be to STDOUT 
 This does not count a success by the best roll necessarily. 's' rolls only work for '>' rolls. Roll descriptions
 are not case sensitive. If min1 is true and the roll is a difficulty check the script will intentionally crash.
 
-
-### TODO:
- - give more depth to argv
- - Rename most vars to PEP8 if not already there?
- - fix _PATTERN: Make the pattern full to cover all valid rolls and assert that it matches perfectly.
- - ',' to make multiple rolls? Maybe use a list vs a string?
- - Fate/Fudge dice.
- - Exploding dice.
-
-
-
-## Module Functions:
-
-#### modify_by_string_operator(mod_str, mod_input, mod_val)
-Modifies input using a string operator, e.g. '+', '-', '*'.
-
-#### roll(rolldesc='d20', min1=None, complete_output=False)
-Returns the result of a dice roll.
-min1 flags a floor of 1 on the result of a roll. It defaults to True if you aren't doing a difficulty check, and false if you are.
-If complete_output is False it returns a string otherwise it returns a results object.
-
-
-## Classes:
-
-### roller.Roller
-Rolls dice according to current rolldesc, stores results, returns results incrementally if desired.
-
-#### `Roller.__init__(rolldesc='d20', min1=None, complete_output=False)`
-As per module roll method.
-
-#### `Roller.roll()`
-Rolls dice according to current rolldesc and appends to results.
-
-#### `Roller.newrolldesc(rolldesc)`
-Assigns new rolldesc. Does not roll.
-
-#### `Roller.send()`
-Returns results that have not previously been returned.
-If you would like to get all results, use Roller().results.

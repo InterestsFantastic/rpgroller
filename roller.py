@@ -1,9 +1,7 @@
 #!/usr/bin/python3
-
 '''Rolls dice using the format you may see in a tabletop RPG, e.g. '3d6'.
 
-roller.roll() does a single roll.
-roller.Roller stores the results of rolls and meters out output.
+roll() does a single roll.
 When called using argv, one roll will be performed and output will be to STDOUT as a string.
 
 
@@ -63,25 +61,8 @@ def _tests():
     _test_rolls()
 
 def _test_rolls():
-    test = Roller('3d6rr2o')
-    for n in range(6):
-        test.roll()
-    out = _OutTerm(test.send())
-    out.render()
-    
-    test.newrolldesc('3d8*10')
-    test.roll()
-    test.newrolldesc('6d10>7sb=3')
-    test.roll()
-    test.newrolldesc('d6<3')
-    for n in range(6):
-        test.roll()
-    test.newrolldesc('4d6kh3rr3o')
-    test.roll()
-    out.results = test.send()
-    out.render()
-
-    
+    print(roll('2d6'))
+   
 def _test_rollstrings():
     assert _COMPILED.match('d20')
     assert _COMPILED.match('D6')
@@ -300,61 +281,13 @@ def roll(rolldesc='d20', min1=None, complete_output=False):
     else:
         return result
     
-
-# ------Objects------------------------------------------------
-
-
-class _OutTerm:
-    '''Default output object, which prints a simple string (final result) to terminal.'''
-    
-    def __init__(self, results=None):
-        self.results = results
-
-    def render(self):
-        assert self.results is not None
-        print(self.results)
-        
-                
-class Roller:
-    '''Rolls dice according to current rolldesc, stores results, returns results incrementally if desired.'''
-    
-    def __init__(self, rolldesc='d20', min1=None, complete_output=False):
-        '''As per module roll method.'''
-        self.min1 = min1
-        self.complete_output = complete_output
-        self.rolldesc = rolldesc
-        self.results = []
-        self.sent = 0
-        
-
-    def roll(self):
-        '''Rolls dice according to current rolldesc and appends to results.'''
-        self.results.append(roll(self.rolldesc, self.min1, self.complete_output))
-    
-    def newrolldesc(self, rolldesc):
-        '''Assigns new rolldesc. Does not roll.'''
-        self.rolldesc = rolldesc
-
-    def send(self):
-        '''Returns results that have not previously been returned.
-
-        If you would like to get all results, use Roller().results.'''
-        assert self.results is not None
-        return_results = self.results[self.sent:]
-        assert return_results != []
-        self.sent = len(self.results)
-        return return_results
-
-
-# ------Execution-------------------------------------
-
-
 if __name__ == '__main__':
     import sys
     if len(sys.argv) > 1:
         print(roll(*sys.argv[1:]))
     else:
-        if _TESTS: _tests()
+        if _TESTS:
+            _tests()
     if _DOCUMENT:
         import autodocumenter
         autodocumenter.do('roller', 'RPG-Roller')
